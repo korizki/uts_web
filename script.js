@@ -4,6 +4,8 @@ const App = () => {
     const [listMahasiswa, setListMahasiswa] = useState([])
     const [listMataKuliah, setListMataKuliah] = useState([])
     const [listDosen, setListDosen] = useState([])
+    const [showMessage, setShowMessage] = useState(null)
+    const [isEdit, setIsEdit] = useState(false)
     const getData = param => {
         $.ajax({
             url: `process/getData.php?type=${param}`,
@@ -19,19 +21,27 @@ const App = () => {
             }
         })
     }
-    const handleSubmit = (e, param) => {
+    const handleSubmit = (e, param, isEdit) => {
         e.preventDefault()
         let formData = new FormData(document.querySelector(`#t${param}`))
         let url = ''
         formData = Object.fromEntries(formData.entries())
         if(param == 'mahasiswa'){
             const {Nama, NIM, Program_Studi} = formData
+            // edit data
+            isEdit ? 
+            url = `process/updateData.php?type=${param}&Nama=${Nama}&NIM=${NIM}&Program_Studi=${Program_Studi}&ID=${formData.ID}` :
+            // tambah data 
             url = `process/processAdd.php?type=${param}&Nama=${Nama}&NIM=${NIM}&Program_Studi=${Program_Studi}` 
         } else if (param == 'matakuliah'){
             const {Nama, Kode_Matakuliah, Deskripsi} = formData
+            isEdit ? 
+            url = `process/updateData.php?type=${param}&nama=${Nama}&kode=${Kode_Matakuliah}&deskripsi=${Deskripsi}&ID=${formData.ID}` : 
             url = `process/processAdd.php?type=${param}&nama=${Nama}&kode=${Kode_Matakuliah}&deskripsi=${Deskripsi}` 
         } else if (param == 'dosen'){
             const {Nama, NIDN, Jenjang_Pendidikan} = formData
+            isEdit ?  
+            url = `process/updateData.php?type=${param}&nama=${Nama}&nidn=${NIDN}&jenjang=${Jenjang_Pendidikan}&ID=${formData.ID}` : 
             url = `process/processAdd.php?type=${param}&nama=${Nama}&nidn=${NIDN}&jenjang=${Jenjang_Pendidikan}` 
         }
         $.ajax({
@@ -43,9 +53,35 @@ const App = () => {
                 if(data == 'berhasil'){
                     $(`#t${param}`)[0].reset()
                     getData(param)
+                    setShowMessage(isEdit ? 'diupdate' : 'ditambahkan')
+                    setTimeout(() => setShowMessage(null), 5000)
                 }
             }
         })
+        setIsEdit(false)
+    }
+    const handleDelete = (type, id) => {
+        let confirm = window.confirm('Yakin ingin hapus data?')
+        if(confirm){
+            $.ajax({
+                url: `process/deleteData.php?type=${type}&id=${id}`,
+                method: 'GET',
+                success: data => {
+                    if(data == 'berhasil'){
+                        getData(type)
+                        setShowMessage('dihapus')
+                        setTimeout(() => setShowMessage(null), 5000)
+                    }
+                }
+            })
+        }
+    }
+    const handleUpdate = (type, listData, id) => {
+        setIsEdit(true)
+        let filteredData = listData.filter(it => it.ID == id)[0]
+        for(let obj in filteredData){
+            $(`[name="${obj}"]`).val(filteredData[obj])
+        }
     }
     useEffect(() => {
         if(activeTab == 1){
@@ -73,9 +109,15 @@ const App = () => {
                 >Dosen</a>
             </div>
             {
+                showMessage != null ? (
+                    <p className="p-2 bg-emerald-100 text-emerald-700 text-center">Selamat, data {activeTab == 1 ? 'Mahasiswa' : activeTab == 2 ? 'Mata Kuliah' : 'Dosen'} berhasil {showMessage}.</p>
+                ) : false
+            }
+            {
                 activeTab == 1 ? (
                     <div className="flex">
-                        <form id="tmahasiswa" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'mahasiswa')}>
+                        <form id="tmahasiswa" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'mahasiswa', isEdit)}>
+                            <input name="ID" hidden/>
                             <div className="mb-4">
                                 <label className="block">Nama</label>
                                 <input required type="text" placeholder="Masukkan nama Mahasiswa" name="Nama" className="border border-slate-200 p-2 mt-1 w-[100%] rounded-md"/>
@@ -89,7 +131,7 @@ const App = () => {
                                 <input required  type="text" placeholder="Masukkan nama Program Studi" name="Program_Studi" className="border border-slate-200 p-2 mt-1 w-[100%] rounded-md"/>
                             </div>
                             <div className="flex justify-end">
-                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">Simpan</button>
+                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">{isEdit ? 'Update' : 'Simpan'}</button>
                             </div>
                         </form>
                         <div className="flex-2 px-[2%] py-[2%]">
@@ -121,7 +163,7 @@ const App = () => {
                                                             ></i> 
                                                         <i 
                                                             title="Update mahasiswa"
-                                                            onClick={() => handleUpdate('mahasiswa', it.ID)}
+                                                            onClick={() => handleUpdate('mahasiswa', listMahasiswa, it.ID)}
                                                             className="fa-solid fa-square-pen text-emerald-400 text-lg cursor-pointer">
                                                         </i> 
                                                     </td>
@@ -138,7 +180,8 @@ const App = () => {
             {
                 activeTab == 2 ? (
                     <div className="flex">
-                        <form id="tmatakuliah" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'matakuliah')}>
+                        <form id="tmatakuliah" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'matakuliah', isEdit)}>
+                            <input name="ID" hidden/>
                             <div className="mb-4">
                                 <label className="block">Nama Mata Kuliah</label>
                                 <input required  type="text" placeholder="Masukkan nama mata kuliah" name="Nama" className="border border-slate-200 p-2 mt-1 w-[100%] rounded-md"/>
@@ -152,7 +195,7 @@ const App = () => {
                                 <input required  type="text" placeholder="Masukkan deskripsi mata kuliah" name="Deskripsi" className="border border-slate-200 p-2 mt-1 w-[100%] rounded-md"/>
                             </div>
                             <div className="flex justify-end">
-                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">Simpan</button>
+                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">{isEdit ? 'Update' : 'Simpan'}</button>
                             </div>
                         </form>
                         <div className="flex-2 px-[2%] py-[2%]">
@@ -180,11 +223,11 @@ const App = () => {
                                                         <i 
                                                             className="fa-solid fa-trash text-rose-400 cursor-pointer mr-4"
                                                             title="Hapus mahasiswa"
-                                                            onClick={() => handleDelete('mahasiswa', it.ID)}
+                                                            onClick={() => handleDelete('matakuliah', it.ID)}
                                                             ></i> 
                                                         <i 
                                                             title="Update mahasiswa"
-                                                            onClick={() => handleUpdate('mahasiswa', it.ID)}
+                                                            onClick={() => handleUpdate('matakuliah', listMataKuliah, it.ID)}
                                                             className="fa-solid fa-square-pen text-emerald-400 text-lg cursor-pointer">
                                                         </i> 
                                                     </td>
@@ -201,7 +244,8 @@ const App = () => {
             {
                 activeTab == 3 ? (
                     <div className="flex">
-                        <form id="tdosen" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'dosen')}>
+                        <form id="tdosen" className="w-[100%] px-[3%] py-[2%] flex-1" onSubmit={e => handleSubmit(e, 'dosen', isEdit)}>
+                            <input name="ID" hidden/>
                             <div className="mb-4">
                                 <label className="block">Nama Dosen</label>
                                 <input required  type="text" placeholder="Masukkan nama dosen" name="Nama" className="border border-slate-200 p-2 mt-1 w-[100%] rounded-md"/>
@@ -219,7 +263,7 @@ const App = () => {
                                 </select>
                             </div>
                             <div className="flex justify-end">
-                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">Simpan</button>
+                                <button type="submit" className="p-2 px-5 bg-sky-500 text-white rounded-md hover:bg-sky-700">{isEdit ? 'Update' : 'Simpan'}</button>
                             </div>
                         </form>
                         <div className="flex-2 px-[2%] py-[2%]">
@@ -247,11 +291,11 @@ const App = () => {
                                                         <i 
                                                             className="fa-solid fa-trash text-rose-400 cursor-pointer mr-4"
                                                             title="Hapus mahasiswa"
-                                                            onClick={() => handleDelete('mahasiswa', it.ID)}
+                                                            onClick={() => handleDelete('dosen', it.ID)}
                                                             ></i> 
                                                         <i 
                                                             title="Update mahasiswa"
-                                                            onClick={() => handleUpdate('mahasiswa', it.ID)}
+                                                            onClick={() => handleUpdate('dosen', listDosen, it.ID)}
                                                             className="fa-solid fa-square-pen text-emerald-400 text-lg cursor-pointer">
                                                         </i> 
                                                     </td>
